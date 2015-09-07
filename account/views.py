@@ -439,6 +439,7 @@ class ConfirmEmailView(TemplateResponseMixin, View):
 
     def after_confirmation(self, confirmation):
         user = confirmation.email_address.user
+        user.email = confirmation.email_address.email
         user.is_active = True
         user.save()
 
@@ -718,7 +719,7 @@ class SettingsView(LoginRequiredMixin, FormView):
         # @@@ handle multiple emails per user
         email = form.cleaned_data["email"].strip()
         if not self.primary_email_address:
-            user.email = email
+            #user.email = email
             EmailAddress.objects.add_email(self.request.user, email, primary=True, confirm=confirm)
             user.save()
         else:

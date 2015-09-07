@@ -7,7 +7,7 @@ from django.test import TestCase
 
 from django.contrib.auth.models import User
 
-from account.models import SignupCode
+from account.models import SignupCode, EmailConfirmation
 
 
 class SignupViewTestCase(TestCase):
@@ -136,6 +136,38 @@ class LoginViewTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.template_name, ["account/login.html"])
 
+class SettingsViewTestCase(TestCase):
+    def test_change_email_not_verify(self):
+        User.objects.create_user("foo", password="bar", email="foo@example.com")
+        self.client.login(username="foo", password="bar")
+
+        with self.settings(ACCOUNT_EMAIL_CONFIRMATION_REQUIRED=True):
+            data = {
+                "email": "foo-new@example.com",
+            }
+            response = self.client.post(reverse("account_settings"), data, follow=True)
+            self.assertEqual(response.status_code, 200)
+            user = User.objects.get(username="foo")
+            self.assertEqual(user.email, 'foo@example.com')
+
+    def test_change_email_verify(self):
+        User.objects.create_user("foo", password="bar", email="foo@example.com")
+        self.client.login(username="foo", password="bar")
+
+        with self.settings(ACCOUNT_EMAIL_CONFIRMATION_REQUIRED=True):
+            data = {
+                "email": "foo-new@example.com",
+            }
+            response = self.client.post(reverse("account_settings"), data, follow=True)
+            self.assertEqual(response.status_code, 200)
+            user = User.objects.get(username="foo")
+            self.assertEqual(user.email, 'foo@example.com')
+
+            confirmation = EmailConfirmation.objects.get(email_address__email='foo-new@example.com')
+            verify_url = reverse(settings.ACCOUNT_EMAIL_CONFIRMATION_URL, args=[confirmation.key])
+            response = self.client.post(verify_url, {})
+            user = User.objects.get(username="foo")
+            self.assertEqual(user.email, 'foo-new@example.com')
 
 def setup_session(client):
     assert apps.is_installed("django.contrib.sessions"), "sessions not installed"
